@@ -76,6 +76,7 @@ public class TraineeServiceImpl implements TraineeService {
         return transactionExecutor.executeInTransaction(session -> {
             Trainee trainee = authenticate(session, username, password);
             Hibernate.initialize(trainee.getTrainers());
+            initializeSpecializations(trainee.getTrainers());
             Hibernate.initialize(trainee.getTrainings());
             return trainee;
         });
@@ -94,7 +95,7 @@ public class TraineeServiceImpl implements TraineeService {
 
     @Override
     public Trainee updateProfile(String username, String password, String firstName, String lastName,
-                                  LocalDate dateOfBirth, String address) {
+                                  LocalDate dateOfBirth, String address, boolean isActive) {
         validateRequired("firstName", firstName);
         validateRequired("lastName", lastName);
 
@@ -104,6 +105,9 @@ public class TraineeServiceImpl implements TraineeService {
             trainee.getUser().setLastName(lastName);
             trainee.setDateOfBirth(dateOfBirth);
             trainee.setAddress(address);
+            trainee.getUser().setIsActive(isActive);
+            Hibernate.initialize(trainee.getTrainers());
+            initializeSpecializations(trainee.getTrainers());
             log.info("Updated trainee profile: username={}", username);
             return trainee;
         });
@@ -146,16 +150,18 @@ public class TraineeServiceImpl implements TraineeService {
     public List<Trainer> getTrainersNotAssigned(String username, String password) {
         return transactionExecutor.executeInTransaction(session -> {
             authenticate(session, username, password);
-            return traineeDao.findTrainersNotAssigned(session, username);
+            return traineeDao.findTrainersNotAssigned(session, username).stream()
+                    .filter(trainer -> Boolean.TRUE.equals(trainer.getUser().getIsActive()))
+                    .toList();
         });
     }
 
     @Override
-    public void updateTrainersList(String username, String password, List<String> trainerUsernames) {
+    public List<Trainer> updateTrainersList(String username, String password, List<String> trainerUsernames) {
         if (trainerUsernames == null) {
             throw new ValidationException("trainerUsernames list must not be null");
         }
-        transactionExecutor.executeInTransaction(session -> {
+        return transactionExecutor.executeInTransaction(session -> {
             Trainee trainee = authenticate(session, username, password);
             Set<Trainer> newTrainers = new HashSet<>();
             for (String trainerUsername : trainerUsernames) {
@@ -164,9 +170,15 @@ public class TraineeServiceImpl implements TraineeService {
                 newTrainers.add(trainer);
             }
             trainee.setTrainers(newTrainers);
+            initializeSpecializations(newTrainers);
             log.info("Updated trainers list for trainee username={}, count={}", username, newTrainers.size());
-            return null;
+            return List.copyOf(newTrainers);
         });
+    }
+
+    /** Trainer.specialization is a LAZY association; force it to load while the session is still open. */
+    private void initializeSpecializations(Set<Trainer> trainers) {
+        trainers.forEach(trainer -> Hibernate.initialize(trainer.getSpecialization()));
     }
 
     private Trainee authenticate(Session session, String username, String password) {

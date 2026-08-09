@@ -8,7 +8,6 @@ public class TrainingCreateRequest {
     private String traineeUsername;
     private String trainerUsername;
     private String trainingName;
-    private String trainingTypeName;
     private LocalDate trainingDate;
     private Integer trainingDurationMinutes;
 
@@ -34,14 +33,6 @@ public class TrainingCreateRequest {
 
     public void setTrainingName(String trainingName) {
         this.trainingName = trainingName;
-    }
-
-    public String getTrainingTypeName() {
-        return trainingTypeName;
-    }
-
-    public void setTrainingTypeName(String trainingTypeName) {
-        this.trainingTypeName = trainingTypeName;
     }
 
     public LocalDate getTrainingDate() {

@@ -114,10 +114,11 @@ class TrainerServiceImplTest {
     }
 
     @Test
-    void updateProfile_updatesFirstAndLastName() {
+    void updateProfile_updatesFirstAndLastNameAndActiveState() {
         when(trainerDao.findByUsername(any(Session.class), eq("nino.kapanadze"))).thenReturn(Optional.of(trainer));
-        Trainer updated = service.updateProfile("nino.kapanadze", "Secret123!", "Nino", "Gelashvili");
+        Trainer updated = service.updateProfile("nino.kapanadze", "Secret123!", "Nino", "Gelashvili", false);
         assertEquals("Gelashvili", updated.getUser().getLastName());
+        assertFalse(updated.getUser().getIsActive());
     }
 
     @Test

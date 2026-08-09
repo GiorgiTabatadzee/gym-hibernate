@@ -6,6 +6,7 @@ import com.epam.gym.dao.TrainingDao;
 import com.epam.gym.dao.UserDao;
 import com.epam.gym.entity.Trainee;
 import com.epam.gym.entity.Trainer;
+import com.epam.gym.entity.TrainingType;
 import com.epam.gym.entity.User;
 import com.epam.gym.exception.AuthenticationException;
 import com.epam.gym.exception.EntityNotFoundException;
@@ -134,6 +135,34 @@ class TraineeServiceImplTest {
     }
 
     @Test
+    void updateProfile_updatesFieldsAndActiveState_afterSuccessfulAuthentication() {
+        when(traineeDao.findByUsername(any(Session.class), eq("giorgi.beridze"))).thenReturn(Optional.of(trainee));
+
+        Trainee updated = service.updateProfile("giorgi.beridze", "Secret123!", "Giorgi", "Beridze-Updated",
+                LocalDate.of(2001, 2, 3), "New Address", false);
+
+        assertEquals("Beridze-Updated", updated.getUser().getLastName());
+        assertEquals(LocalDate.of(2001, 2, 3), updated.getDateOfBirth());
+        assertEquals("New Address", updated.getAddress());
+        assertFalse(updated.getUser().getIsActive());
+    }
+
+    @Test
+    void updateProfile_throwsOnBlankFirstName() {
+        assertThrows(ValidationException.class,
+                () -> service.updateProfile("giorgi.beridze", "Secret123!", " ", "Beridze",
+                        LocalDate.now(), "Tbilisi", true));
+    }
+
+    @Test
+    void updateProfile_throwsAuthenticationException_onWrongPassword() {
+        when(traineeDao.findByUsername(any(Session.class), eq("giorgi.beridze"))).thenReturn(Optional.of(trainee));
+        assertThrows(AuthenticationException.class,
+                () -> service.updateProfile("giorgi.beridze", "wrong", "Giorgi", "Beridze",
+                        LocalDate.now(), "Tbilisi", true));
+    }
+
+    @Test
     void setActive_throwsIllegalStateTransition_whenAlreadyActive() {
         when(traineeDao.findByUsername(any(Session.class), eq("giorgi.beridze"))).thenReturn(Optional.of(trainee));
         assertThrows(IllegalStateTransitionException.class,
@@ -164,7 +193,8 @@ class TraineeServiceImplTest {
 
     @Test
     void getTrainersNotAssigned_delegatesToDao_afterAuthentication() {
-        Trainer trainer = new Trainer();
+        User trainerUser = new User("Nino", "Kapanadze", "nino.kapanadze", "Secret123!", true);
+        Trainer trainer = new Trainer(new TrainingType("Cardio"), trainerUser);
         trainer.setId(2L);
         when(traineeDao.findByUsername(any(Session.class), eq("giorgi.beridze"))).thenReturn(Optional.of(trainee));
         when(traineeDao.findTrainersNotAssigned(any(Session.class), eq("giorgi.beridze")))
@@ -173,6 +203,20 @@ class TraineeServiceImplTest {
         List<Trainer> result = service.getTrainersNotAssigned("giorgi.beridze", "Secret123!");
 
         assertEquals(1, result.size());
+    }
+
+    @Test
+    void getTrainersNotAssigned_excludesInactiveTrainers() {
+        User inactiveTrainerUser = new User("Nino", "Kapanadze", "nino.kapanadze", "Secret123!", false);
+        Trainer inactiveTrainer = new Trainer(new TrainingType("Cardio"), inactiveTrainerUser);
+        inactiveTrainer.setId(3L);
+        when(traineeDao.findByUsername(any(Session.class), eq("giorgi.beridze"))).thenReturn(Optional.of(trainee));
+        when(traineeDao.findTrainersNotAssigned(any(Session.class), eq("giorgi.beridze")))
+                .thenReturn(List.of(inactiveTrainer));
+
+        List<Trainer> result = service.getTrainersNotAssigned("giorgi.beridze", "Secret123!");
+
+        assertTrue(result.isEmpty());
     }
 
     @Test

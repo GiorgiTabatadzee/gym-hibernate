@@ -32,7 +32,7 @@ public class TraineeDaoImpl implements TraineeDao {
     @Override
     public List<Trainer> findTrainersNotAssigned(Session session, String traineeUsername) {
         Query<Trainer> query = session.createQuery(
-                "FROM Trainer tr WHERE tr.id NOT IN " +
+                "FROM Trainer tr JOIN FETCH tr.specialization WHERE tr.id NOT IN " +
                         "(SELECT t.id FROM Trainee trn JOIN trn.trainers t WHERE trn.user.username = :username)",
                 Trainer.class);
         query.setParameter("username", traineeUsername);

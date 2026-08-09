@@ -76,6 +76,7 @@ public class TrainerServiceImpl implements TrainerService {
     public Trainer getProfileByUsername(String username, String password) {
         return transactionExecutor.executeInTransaction(session -> {
             Trainer trainer = authenticate(session, username, password);
+            Hibernate.initialize(trainer.getSpecialization());
             Hibernate.initialize(trainer.getTrainees());
             Hibernate.initialize(trainer.getTrainings());
             return trainer;
@@ -94,7 +95,8 @@ public class TrainerServiceImpl implements TrainerService {
     }
 
     @Override
-    public Trainer updateProfile(String username, String password, String firstName, String lastName) {
+    public Trainer updateProfile(String username, String password, String firstName, String lastName,
+                                  boolean isActive) {
         validateRequired("firstName", firstName);
         validateRequired("lastName", lastName);
 
@@ -102,6 +104,9 @@ public class TrainerServiceImpl implements TrainerService {
             Trainer trainer = authenticate(session, username, password);
             trainer.getUser().setFirstName(firstName);
             trainer.getUser().setLastName(lastName);
+            trainer.getUser().setIsActive(isActive);
+            Hibernate.initialize(trainer.getSpecialization());
+            Hibernate.initialize(trainer.getTrainees());
             log.info("Updated trainer profile: username={}", username);
             return trainer;
         });

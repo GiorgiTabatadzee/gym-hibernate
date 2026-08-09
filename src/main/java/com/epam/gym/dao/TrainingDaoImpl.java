@@ -20,7 +20,8 @@ public class TrainingDaoImpl implements TrainingDao {
     public List<Training> findByTraineeUsername(Session session, String traineeUsername,
                                                   TraineeTrainingCriteria criteria) {
         StringBuilder hql = new StringBuilder(
-                "FROM Training t WHERE t.trainee.user.username = :username");
+                "FROM Training t JOIN FETCH t.trainer tr JOIN FETCH tr.user JOIN FETCH t.trainingType " +
+                        "WHERE t.trainee.user.username = :username");
         if (criteria != null) {
             if (criteria.getFromDate() != null) hql.append(" AND t.trainingDate >= :fromDate");
             if (criteria.getToDate() != null) hql.append(" AND t.trainingDate <= :toDate");
@@ -42,7 +43,8 @@ public class TrainingDaoImpl implements TrainingDao {
     public List<Training> findByTrainerUsername(Session session, String trainerUsername,
                                                   TrainerTrainingCriteria criteria) {
         StringBuilder hql = new StringBuilder(
-                "FROM Training t WHERE t.trainer.user.username = :username");
+                "FROM Training t JOIN FETCH t.trainee tn JOIN FETCH tn.user JOIN FETCH t.trainingType " +
+                        "WHERE t.trainer.user.username = :username");
         if (criteria != null) {
             if (criteria.getFromDate() != null) hql.append(" AND t.trainingDate >= :fromDate");
             if (criteria.getToDate() != null) hql.append(" AND t.trainingDate <= :toDate");

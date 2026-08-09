@@ -22,9 +22,13 @@ public interface TraineeService {
     /** #7 Trainee password change (requires authentication with the OLD password). */
     void changePassword(String username, String oldPassword, String newPassword);
 
-    /** #10 Update trainee profile (requires authentication). */
+    /**
+     * #10 Update trainee profile (requires authentication). Unlike {@link #setActive}, setting
+     * isActive here is a plain idempotent field update — it's part of a full profile replace, not
+     * the dedicated activate/de-activate action.
+     */
     Trainee updateProfile(String username, String password, String firstName, String lastName,
-                           LocalDate dateOfBirth, String address);
+                           LocalDate dateOfBirth, String address, boolean isActive);
 
     /** #11 Activate/De-activate trainee. Not idempotent: throws if already in the requested state. */
     void setActive(String username, String password, boolean active);
@@ -35,9 +39,9 @@ public interface TraineeService {
     /** #14 Get Trainee Trainings List by username and optional criteria. */
     List<Training> getTrainingsList(String username, String password, TraineeTrainingCriteria criteria);
 
-    /** #17 Get trainers list not yet assigned to this trainee. */
+    /** #17 Get list of active trainers not yet assigned to this trainee. */
     List<Trainer> getTrainersNotAssigned(String username, String password);
 
-    /** #18 Update trainee's trainers list (full replace). */
-    void updateTrainersList(String username, String password, List<String> trainerUsernames);
+    /** #18 Update trainee's trainers list (full replace). Returns the resulting trainer set. */
+    List<Trainer> updateTrainersList(String username, String password, List<String> trainerUsernames);
 }

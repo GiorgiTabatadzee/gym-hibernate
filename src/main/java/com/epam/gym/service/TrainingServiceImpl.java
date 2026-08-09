@@ -3,12 +3,10 @@ package com.epam.gym.service;
 import com.epam.gym.dao.TraineeDao;
 import com.epam.gym.dao.TrainerDao;
 import com.epam.gym.dao.TrainingDao;
-import com.epam.gym.dao.TrainingTypeDao;
 import com.epam.gym.dto.TrainingCreateRequest;
 import com.epam.gym.entity.Trainee;
 import com.epam.gym.entity.Trainer;
 import com.epam.gym.entity.Training;
-import com.epam.gym.entity.TrainingType;
 import com.epam.gym.exception.AuthenticationException;
 import com.epam.gym.exception.EntityNotFoundException;
 import com.epam.gym.exception.ValidationException;
@@ -22,15 +20,13 @@ public class TrainingServiceImpl implements TrainingService {
 
     private final TraineeDao traineeDao;
     private final TrainerDao trainerDao;
-    private final TrainingTypeDao trainingTypeDao;
     private final TrainingDao trainingDao;
     private final TransactionExecutor transactionExecutor;
 
-    public TrainingServiceImpl(TraineeDao traineeDao, TrainerDao trainerDao, TrainingTypeDao trainingTypeDao,
+    public TrainingServiceImpl(TraineeDao traineeDao, TrainerDao trainerDao,
                                 TrainingDao trainingDao, TransactionExecutor transactionExecutor) {
         this.traineeDao = traineeDao;
         this.trainerDao = trainerDao;
-        this.trainingTypeDao = trainingTypeDao;
         this.trainingDao = trainingDao;
         this.transactionExecutor = transactionExecutor;
     }
@@ -52,11 +48,10 @@ public class TrainingServiceImpl implements TrainingService {
                     .orElseThrow(() -> new EntityNotFoundException(
                             "Trainee not found: " + request.getTraineeUsername()));
 
-            TrainingType trainingType = trainingTypeDao.findByName(session, request.getTrainingTypeName())
-                    .orElseThrow(() -> new EntityNotFoundException(
-                            "Unknown training type: " + request.getTrainingTypeName()));
-
-            Training training = new Training(trainee, trainer, request.getTrainingName(), trainingType,
+            // Training type follows the assigned trainer's own specialization — the trainer/training
+            // relation already fixes it, so it isn't a separate field on the request (task's Add
+            // Training request has no training-type field of its own).
+            Training training = new Training(trainee, trainer, request.getTrainingName(), trainer.getSpecialization(),
                     request.getTrainingDate(), request.getTrainingDurationMinutes());
             Training saved = trainingDao.save(session, training);
 
@@ -73,7 +68,6 @@ public class TrainingServiceImpl implements TrainingService {
         requireText("traineeUsername", request.getTraineeUsername());
         requireText("trainerUsername", request.getTrainerUsername());
         requireText("trainingName", request.getTrainingName());
-        requireText("trainingTypeName", request.getTrainingTypeName());
         if (request.getTrainingDate() == null) {
             throw new ValidationException("trainingDate is required");
         }

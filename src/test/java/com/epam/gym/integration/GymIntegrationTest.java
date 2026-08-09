@@ -56,7 +56,7 @@ class GymIntegrationTest {
         trainerService = new TrainerServiceImpl(
                 new TrainerDaoImpl(), new TrainingTypeDaoImpl(), new TrainingDaoImpl(), new UserDaoImpl(), tx);
         trainingService = new TrainingServiceImpl(
-                new TraineeDaoImpl(), new TrainerDaoImpl(), new TrainingTypeDaoImpl(), new TrainingDaoImpl(), tx);
+                new TraineeDaoImpl(), new TrainerDaoImpl(), new TrainingDaoImpl(), tx);
     }
 
     @AfterAll
@@ -94,7 +94,6 @@ class GymIntegrationTest {
         request.setTraineeUsername(traineeUsername);
         request.setTrainerUsername(trainerUsername);
         request.setTrainingName("Morning Cardio Session");
-        request.setTrainingTypeName(cardio.getTrainingTypeName());
         request.setTrainingDate(LocalDate.now());
         request.setTrainingDurationMinutes(30);
         trainingService.addTraining(request, trainerPassword);
@@ -104,6 +103,7 @@ class GymIntegrationTest {
                 traineeUsername, traineePassword, new TraineeTrainingCriteria());
         assertEquals(1, trainings.size());
         assertEquals("Morning Cardio Session", trainings.get(0).getTrainingName());
+        assertEquals(cardio.getTrainingTypeName(), trainings.get(0).getTrainingType().getTrainingTypeName());
 
         // 18: assign the trainer to the trainee's trainers list, then verify #17 excludes them.
         traineeService.updateTrainersList(traineeUsername, traineePassword, List.of(trainerUsername));

@@ -1,136 +1,118 @@
-# Gym Hibernate — Trainer/Trainee/Training Management
+# Gym REST API — Trainer/Trainee/Training Management
 
-Plain Hibernate (no Spring) implementation of the DB schema and 18
-functionalities from the task sheet, built on top of the JPA (`jakarta.persistence`)
-annotations and the native Hibernate `Session` API.
+Spring Boot REST API on top of the plain-Hibernate DAO/service layer from the previous module
+(`dao`/`service`/`entity` are untouched in their transaction handling — they're wired into Spring
+as beans in [`BeanConfiguration`](src/main/java/com/epam/gym/config/BeanConfiguration.java) rather
+than rewritten).
 
 ## Quick start
 
 ```bash
-mvn clean test              # run unit + integration tests (uses in-memory H2)
-mvn clean package           # build the jar
-mvn compile exec:java -Dexec.mainClass=com.epam.gym.Application   # run the demo
+mvn spring-boot:run             # start the API on :8080
+mvn clean test                  # run unit + integration tests (in-memory H2)
+mvn clean verify                # tests + build the executable jar + JaCoCo report
 ```
 
-Or run `com.epam.gym.Application` directly from your IDE (IntelliJ: right-click →
-Run). It walks through all 18 functionalities against a real file-based H2
-database and logs each step.
-
-**Note on this environment:** the sandbox I built this in can't reach Maven
-Central, so I couldn't run `mvn` itself here. Instead I hand-wrote stub jars
-matching the exact API surface of Hibernate 6 / jakarta.persistence / SLF4J /
-JUnit5 / Mockito and compiled the entire `src/main` and `src/test` tree
-against them with `javac` directly — that catches real type errors, wrong
-method signatures, and generics mistakes (and it did catch one: an
-`assertEquals(int, Integer)` overload ambiguity, now fixed). It does not
-replace a real `mvn clean test` run on your machine, which I'd still recommend
-as the first thing you do.
+Swagger UI: http://localhost:8080/swagger-ui.html
+OpenAPI JSON: http://localhost:8080/v3/api-docs
 
 ## Database
 
 Default: **H2**, file-based, stored at `./data/gymdb`, schema auto-managed
-(`hibernate.hbm2ddl.auto=update`) — so first run creates everything and later
-runs keep your data. Zero setup required.
+(`hibernate.hbm2ddl.auto=update`). Zero setup required. The constant Training Type list (Cardio,
+Strength, Yoga, CrossFit, Stretching, Zumba) is seeded on first startup by
+[`TrainingTypeSeeder`](src/main/java/com/epam/gym/config/TrainingTypeSeeder.java), since there's no
+REST endpoint to create one (task note: the table "could not be updated from the application").
 
-To switch to **PostgreSQL**: edit `src/main/resources/hibernate.cfg.xml` —
-the four connection properties and the dialect line have the replacement
-values commented directly above them. The `postgresql` JDBC driver is already
-on the classpath via `pom.xml`.
+To switch to **PostgreSQL**: edit `src/main/resources/hibernate.cfg.xml` — the four connection
+properties and the dialect line have the replacement values commented directly above them.
 
-## Project layout
+## Authentication
 
-```
-entity/    User, Trainee, Trainer, Training, TrainingType — JPA-mapped per the schema
-dao/       Hibernate Session-based data access, one interface + impl per entity
-service/   Business logic: the 18 functionalities, auth checks, validation
-dto/       Search-criteria and request payloads (TraineeTrainingCriteria, etc.)
-util/      HibernateUtil (SessionFactory), TransactionExecutor (tx boundaries),
-           CredentialGenerator (username/password generation)
-exception/ AuthenticationException, EntityNotFoundException, ValidationException,
-           IllegalStateTransitionException
-Application.java   demo/smoke-test driver exercising the full flow
-```
+Every endpoint except the two registrations (`POST /api/trainees`, `POST /api/trainers`) and Login
+(`GET /api/auth/login`, which *is* the authentication check) requires **HTTP Basic auth**
+(`Authorization: Basic base64(username:password)`). Change Login authenticates via its own
+`oldPassword` field instead.
 
-## Assumption flagged up front: credential generation
+Basic-auth credentials are resolved by
+[`AuthCredentialsArgumentResolver`](src/main/java/com/epam/gym/web/security/AuthCredentialsArgumentResolver.java)
+into an `AuthCredentials` controller-method parameter. Missing/malformed headers are rejected there;
+whether the header's username/password actually match the *target* resource (the trainee/trainer in
+the path) is enforced by the existing service-layer `authenticate(username, password)` checks — so a
+trainee can only ever act on their own profile, and a trainer can only ever add trainings under their
+own credentials.
 
-I didn't have your previous module's codebase, so `CredentialGenerator`
-reimplements a standard, commonly-used scheme rather than your exact one:
+## REST endpoints
 
-- **username** = `firstname.lastname` (lower-cased); on collision, the
-  smallest free serial suffix is appended (`john.doe`, then `john.doe1`,
-  `john.doe2`, ...)
-- **password** = random 10-character alphanumeric string
-
-Every caller goes through this one class, so if your actual generator works
-differently, that's the only file to change.
-
-## Functionality → code map
-
-| # | Functionality | Where |
+| # | Functionality | Method & path |
 |---|---|---|
-| 1 | Create Trainer profile | `TrainerService.createTrainerProfile` |
-| 2 | Create Trainee profile | `TraineeService.createTraineeProfile` |
-| 3 | Trainee username/password matching | `TraineeService.matchCredentials` |
-| 4 | Trainer username/password matching | `TrainerService.matchCredentials` |
-| 5 | Select Trainer profile by username | `TrainerService.getProfileByUsername` |
-| 6 | Select Trainee profile by username | `TraineeService.getProfileByUsername` |
-| 7 | Trainee password change | `TraineeService.changePassword` |
-| 8 | Trainer password change | `TrainerService.changePassword` |
-| 9 | Update trainer profile | `TrainerService.updateProfile` |
-| 10 | Update trainee profile | `TraineeService.updateProfile` |
-| 11 | Activate/de-activate trainee | `TraineeService.setActive` |
-| 12 | Activate/de-activate trainer | `TrainerService.setActive` |
-| 13 | Delete trainee by username | `TraineeService.deleteProfileByUsername` |
-| 14 | Trainee trainings list + criteria | `TraineeService.getTrainingsList` |
-| 15 | Trainer trainings list + criteria | `TrainerService.getTrainingsList` |
-| 16 | Add training | `TrainingService.addTraining` |
-| 17 | Trainers not assigned to a trainee | `TraineeService.getTrainersNotAssigned` |
-| 18 | Update trainee's trainers list | `TraineeService.updateTrainersList` |
+| 1 | Trainee Registration | `POST /api/trainees` |
+| 2 | Trainer Registration | `POST /api/trainers` |
+| 3 | Login | `GET /api/auth/login?username=&password=` |
+| 4 | Change Login | `PUT /api/auth/password` |
+| 5 | Get Trainee Profile | `GET /api/trainees/{username}` |
+| 6 | Update Trainee Profile | `PUT /api/trainees/{username}` |
+| 7 | Delete Trainee Profile | `DELETE /api/trainees/{username}` |
+| 8 | Get Trainer Profile | `GET /api/trainers/{username}` |
+| 9 | Update Trainer Profile | `PUT /api/trainers/{username}` |
+| 10 | Get active trainers not assigned to a trainee | `GET /api/trainees/{username}/unassigned-trainers` |
+| 11 | Update Trainee's Trainer List | `PUT /api/trainees/{username}/trainers` |
+| 12 | Get Trainee Trainings List | `GET /api/trainees/{username}/trainings?periodFrom=&periodTo=&trainerName=&trainingType=` |
+| 13 | Get Trainer Trainings List | `GET /api/trainers/{username}/trainings?periodFrom=&periodTo=&traineeName=` |
+| 14 | Add Training | `POST /api/trainings` |
+| 15 | Activate/De-Activate Trainee | `PATCH /api/trainees/{username}/status` |
+| 16 | Activate/De-Activate Trainer | `PATCH /api/trainers/{username}/status` |
+| 17 | Get Training Types | `GET /api/training-types` |
 
-Every operation except the two `create*Profile` methods requires the
-caller's own username + password, checked before the operation runs (task
-note #2). `TrainingType` is create/read-only — there is deliberately no
-update method (task note #12).
+Notes on a couple of deliberate choices:
+- **Add Training has no `trainingType` field.** The task's request payload doesn't list one, and a
+  training's type follows directly from the assigned trainer's own specialization
+  (`TrainingServiceImpl.addTraining` derives it from `trainer.getSpecialization()`), so there's
+  nothing else for the field to mean.
+- **PATCH is not idempotent, by design.** Activate/de-activate rejects a request for the account's
+  current state (`IllegalStateTransitionException` → `409 Conflict`) per the task's explicit note
+  that this action is not idempotent — everything else (GET/PUT/DELETE) is.
+- **Update Trainee/Trainer Profile's `isActive` is a plain field set**, not routed through the
+  not-idempotent activate/de-activate path — it's part of a full profile replace via PUT.
 
-## Design notes
+## Error handling
 
-- **Transactions**: every service method runs through
-  `TransactionExecutor.executeInTransaction(...)`, which opens a Session,
-  begins a Transaction, commits on success, and rolls back + rethrows on any
-  `RuntimeException`. This is the single place transaction boundaries live —
-  no service method opens a Session itself.
-- **Testability**: `TransactionExecutor` is an interface specifically so unit
-  tests can swap in `FakeTransactionExecutor` (runs the work function against
-  a plain Mockito mock `Session`) instead of standing up real Hibernate. DAOs
-  are mocked directly in service tests; `GymIntegrationTest` is the one test
-  that exercises real Hibernate + H2 end to end, including the cascade
-  delete.
-- **Cascade delete**: `Trainee.trainings` is `cascade = ALL, orphanRemoval =
-  true`, so `deleteProfileByUsername` cascades to the trainee's `Training`
-  rows automatically (task note #7). `Trainer` has no such cascade — trainer
-  deletion isn't in scope.
-- **Not idempotent activate/deactivate**: `setActive` throws
-  `IllegalStateTransitionException` if the account is already in the
-  requested state, per task note #6.
-- **Logging**: SLF4J/Logback, INFO for business events, WARN for failed
-  auth/rollback, `org.hibernate` pinned to WARN to keep the console readable
-  (flip to DEBUG in `logback.xml` to see generated SQL). Passwords are never
-  logged — `User.toString()` deliberately omits the field.
-- **Passwords are stored in plaintext** to match the plain generated-string
-  scheme from the previous module. For anything beyond a coursework exercise
-  you'd hash them (e.g. BCrypt) before persisting — flagging this so it's a
-  conscious choice, not an oversight.
+[`GlobalExceptionHandler`](src/main/java/com/epam/gym/web/error/GlobalExceptionHandler.java) maps
+every failure to a consistent JSON body (`timestamp`, `status`, `error`, `message`, `path`,
+`transactionId`, optional `validationErrors`) and the matching HTTP status:
+`ValidationException`/bean-validation failures → 400, `AuthenticationException` → 401,
+`EntityNotFoundException` → 404, `IllegalStateTransitionException` → 409, anything unexpected → 500.
+
+## Logging
+
+Two levels, per the task spec:
+1. **Transaction level** — [`TransactionIdFilter`](src/main/java/com/epam/gym/web/logging/TransactionIdFilter.java)
+   assigns a `transactionId` (reused from an incoming `X-Transaction-Id` header if present, otherwise
+   generated) to every request, puts it in the SLF4J MDC for the request's lifetime, and echoes it
+   back on the response — every log line during that request carries it (`[txId=...]` in the pattern).
+2. **REST call level** — [`RequestLoggingAspect`](src/main/java/com/epam/gym/web/logging/RequestLoggingAspect.java)
+   logs which endpoint was called, the request (with any `*password*`-named parameter or JSON field
+   masked to `***` — see its tests for the exact cases covered), and the outcome (`200 OK` or the
+   exception).
+
+## API documentation
+
+Controllers are annotated with Swagger 2 annotations (`@Api`, `@ApiOperation`, `@ApiParam`,
+`@ApiImplicitParam(s)`, `@ApiResponses`) from `io.swagger:swagger-annotations`. The live interactive
+UI is generated by **springdoc** (OpenAPI 3) rather than springfox, since springfox has no support
+for Spring Boot 3 / the `jakarta.*` namespace that this project's entities already use.
+
+## Design notes carried over from the previous module
+
+- **Transactions**: every service method still runs through `TransactionExecutor.executeInTransaction(...)`.
+- **Cascade delete**: deleting a trainee cascades to their trainings (task note).
+- **Username generation**: `firstname.lastname`, lower-cased, with a numeric suffix on collision;
+  password is a random 10-character alphanumeric string (`CredentialGenerator`).
+- **Trainees ↔ Trainers**: many-to-many; **Users ↔ Trainee/Trainer**: one-to-one, parent/child.
 
 ## Tests
 
-- `CredentialGeneratorTest` — pure logic, no mocking needed
-- `TraineeServiceImplTest`, `TrainerServiceImplTest`, `TrainingServiceImplTest`
-  — Mockito-based, cover the happy path, validation failures, auth failures,
-  and the not-idempotent activate/deactivate rule for every functionality
-- `GymIntegrationTest` — one full lifecycle test against real in-memory H2:
-  create → authenticate → add training → list trainings → assign trainer →
-  hard-delete → verify cascade
-
-Run `mvn test jacoco:report` and open
-`target/site/jacoco/index.html` for the coverage report (rubric asks for
-≥80% line coverage).
+`mvn clean verify` runs unit tests (services, DTOs, entities, config, logging, auth) plus MockMvc
+slice tests for all five controllers (happy path, validation errors, auth failures, not-found,
+conflict) and one full-stack integration test against real Hibernate + in-memory H2. JaCoCo report:
+`target/site/jacoco/index.html` (line coverage well above the 80% bar).
