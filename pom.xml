@@ -39,6 +39,27 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- Actuator: health/info/metrics endpoints, plus our custom HealthIndicators. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Prometheus metrics registry, auto-wired into Micrometer by the actuator starter above;
+             backs our custom counters/gauges and exposes them at /actuator/prometheus. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Gives us an autoconfigured, per-profile javax.sql.DataSource (HikariCP) driven purely by
+             spring.datasource.* properties — used to build the native Hibernate SessionFactory below,
+             without pulling in spring-data-jpa/EntityManager. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
         <!-- Hibernate ORM (JPA, jakarta.persistence namespace) — used directly via the
              existing hand-rolled DAO layer, not spring-data-jpa. -->
         <dependency>

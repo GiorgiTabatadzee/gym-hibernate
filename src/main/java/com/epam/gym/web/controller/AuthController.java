@@ -2,6 +2,8 @@ package com.epam.gym.web.controller;
 
 import com.epam.gym.service.AuthenticationService;
 import com.epam.gym.web.dto.ChangeLoginRequest;
+import com.epam.gym.metrics.GymMetrics;
+import com.epam.gym.exception.AuthenticationException;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -23,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthenticationService authenticationService;
+    private final GymMetrics metrics;
 
-    public AuthController(AuthenticationService authenticationService) {
+    public AuthController(AuthenticationService authenticationService, GymMetrics metrics) {
         this.authenticationService = authenticationService;
+        this.metrics = metrics;
     }
 
     @GetMapping("/login")
@@ -33,8 +37,14 @@ public class AuthController {
             + "check for the given username/password pair.")
     public ResponseEntity<Void> login(@ApiParam(required = true) @RequestParam @NotBlank String username,
                                        @ApiParam(required = true) @RequestParam @NotBlank String password) {
-        authenticationService.authenticate(username, password);
-        return ResponseEntity.ok().build();
+        try {
+            authenticationService.authenticate(username, password);
+            metrics.incrementLoginSuccess();
+            return ResponseEntity.ok().build();
+        } catch (AuthenticationException e) {
+            metrics.incrementLoginFailure();
+            throw e;
+        }
     }
 
     @PutMapping("/password")

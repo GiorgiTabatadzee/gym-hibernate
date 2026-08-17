@@ -1,0 +1,23 @@
+# Shared dev environment: separate file-based H2 instance from local, schema auto-managed.
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/gymdb-dev;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+app:
+  hibernate:
+    dialect: org.hibernate.dialect.H2Dialect
+    ddl-auto: update
+    show-sql: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env,beans
+
+logging:
+  level:
+    com.epam.gym: DEBUG

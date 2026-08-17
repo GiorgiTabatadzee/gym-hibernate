@@ -13,6 +13,7 @@ import com.epam.gym.web.dto.UpdateTraineeProfileRequest;
 import com.epam.gym.web.dto.UpdateTraineeTrainersRequest;
 import com.epam.gym.dto.TraineeTrainingCriteria;
 import com.epam.gym.web.security.AuthCredentials;
+import com.epam.gym.metrics.GymMetrics;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
@@ -46,9 +47,11 @@ import java.util.List;
 public class TraineeController {
 
     private final TraineeService traineeService;
+    private final GymMetrics metrics;
 
-    public TraineeController(TraineeService traineeService) {
+    public TraineeController(TraineeService traineeService, GymMetrics metrics) {
         this.traineeService = traineeService;
+        this.metrics = metrics;
     }
 
     @PostMapping
@@ -58,6 +61,7 @@ public class TraineeController {
     public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegisterTraineeRequest request) {
         Trainee trainee = traineeService.createTraineeProfile(
                 request.getFirstName(), request.getLastName(), request.getDateOfBirth(), request.getAddress());
+        metrics.incrementTraineeRegistrations();
         RegistrationResponse response = new RegistrationResponse(
                 trainee.getUser().getUsername(), trainee.getUser().getPassword());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

@@ -8,6 +8,7 @@ import com.epam.gym.entity.User;
 import com.epam.gym.exception.EntityNotFoundException;
 import com.epam.gym.exception.IllegalStateTransitionException;
 import com.epam.gym.service.TrainerService;
+import com.epam.gym.metrics.GymMetrics;
 import com.epam.gym.web.config.WebMvcConfig;
 import com.epam.gym.web.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,9 @@ class TrainerControllerTest {
     @MockitoBean
     private TrainerService trainerService;
 
+    @MockitoBean
+    private GymMetrics metrics;
+
     private Trainer trainer;
     private Trainee trainee;
 
@@ -71,6 +75,8 @@ class TrainerControllerTest {
                         .content("{\"firstName\":\"Nino\",\"lastName\":\"Kapanadze\",\"specialization\":\"Cardio\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value("nino.kapanadze"));
+
+        verify(metrics).incrementTrainerRegistrations();
     }
 
     @Test

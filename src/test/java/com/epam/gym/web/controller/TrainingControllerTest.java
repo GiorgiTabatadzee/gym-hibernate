@@ -4,6 +4,7 @@ import com.epam.gym.dto.TrainingCreateRequest;
 import com.epam.gym.exception.AuthenticationException;
 import com.epam.gym.exception.EntityNotFoundException;
 import com.epam.gym.service.TrainingService;
+import com.epam.gym.metrics.GymMetrics;
 import com.epam.gym.web.config.WebMvcConfig;
 import com.epam.gym.web.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,9 @@ class TrainingControllerTest {
     @MockitoBean
     private TrainingService trainingService;
 
+    @MockitoBean
+    private GymMetrics metrics;
+
     private static final String VALID_BODY = "{\"traineeUsername\":\"giorgi.beridze\","
             + "\"trainerUsername\":\"nino.kapanadze\",\"trainingName\":\"Morning Cardio\","
             + "\"trainingDate\":\"2026-08-10\",\"trainingDuration\":45}";
@@ -44,6 +48,7 @@ class TrainingControllerTest {
                 .andExpect(status().isOk());
 
         verify(trainingService).addTraining(any(TrainingCreateRequest.class), org.mockito.ArgumentMatchers.eq("Secret123!"));
+        verify(metrics).incrementTrainingsAdded();
     }
 
     @Test

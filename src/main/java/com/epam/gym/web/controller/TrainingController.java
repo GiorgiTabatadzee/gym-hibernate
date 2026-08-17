@@ -4,6 +4,7 @@ import com.epam.gym.dto.TrainingCreateRequest;
 import com.epam.gym.service.TrainingService;
 import com.epam.gym.web.dto.AddTrainingRequest;
 import com.epam.gym.web.security.AuthCredentials;
+import com.epam.gym.metrics.GymMetrics;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TrainingController {
 
     private final TrainingService trainingService;
+    private final GymMetrics metrics;
 
-    public TrainingController(TrainingService trainingService) {
+    public TrainingController(TrainingService trainingService, GymMetrics metrics) {
         this.trainingService = trainingService;
+        this.metrics = metrics;
     }
 
     @PostMapping
@@ -39,6 +42,7 @@ public class TrainingController {
         serviceRequest.setTrainingDate(request.getTrainingDate());
         serviceRequest.setTrainingDurationMinutes(request.getTrainingDuration());
         trainingService.addTraining(serviceRequest, credentials.getPassword());
+        metrics.incrementTrainingsAdded();
         return ResponseEntity.ok().build();
     }
 }

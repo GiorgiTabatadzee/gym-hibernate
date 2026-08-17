@@ -1,6 +1,8 @@
 spring:
   application:
     name: gym-hibernate
+  profiles:
+    active: local
 
 server:
   port: 8080
@@ -10,3 +12,20 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Gym Trainer/Trainee/Training management REST API

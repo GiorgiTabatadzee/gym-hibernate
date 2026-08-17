@@ -11,6 +11,8 @@ import com.epam.gym.service.TrainerService;
 import com.epam.gym.service.TrainingService;
 import com.epam.gym.service.TrainingTypeService;
 import com.epam.gym.util.TransactionExecutor;
+import org.h2.jdbcx.JdbcDataSource;
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +23,26 @@ import static org.mockito.Mockito.mock;
 class BeanConfigurationTest {
 
     private final BeanConfiguration config = new BeanConfiguration();
+
+    @Test
+    void sessionFactory_buildsWorkingFactory_fromDataSourceAndHibernateProperties() {
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:bean-config-test;DB_CLOSE_DELAY=-1");
+        dataSource.setUser("sa");
+        dataSource.setPassword("");
+
+        HibernateProperties hibernateProperties = new HibernateProperties();
+        hibernateProperties.setDialect("org.hibernate.dialect.H2Dialect");
+        hibernateProperties.setDdlAuto("create-drop");
+        hibernateProperties.setShowSql(false);
+
+        try (SessionFactory sessionFactory = config.sessionFactory(dataSource, hibernateProperties)) {
+            assertNotNull(sessionFactory);
+            try (Session session = sessionFactory.openSession()) {
+                assertNotNull(session);
+            }
+        }
+    }
 
     @Test
     void allBeanMethodsProduceNonNullInstances() {

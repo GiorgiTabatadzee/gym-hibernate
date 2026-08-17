@@ -2,6 +2,7 @@ package com.epam.gym.web.controller;
 
 import com.epam.gym.exception.AuthenticationException;
 import com.epam.gym.service.AuthenticationService;
+import com.epam.gym.metrics.GymMetrics;
 import com.epam.gym.web.config.WebMvcConfig;
 import com.epam.gym.web.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class AuthControllerTest {
     @MockitoBean
     private AuthenticationService authenticationService;
 
+    @MockitoBean
+    private GymMetrics metrics;
+
     @Test
     void login_returns200_onValidCredentials() throws Exception {
         mockMvc.perform(get("/api/auth/login")
@@ -35,6 +39,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk());
 
         verify(authenticationService).authenticate("giorgi.beridze", "Secret123!");
+        verify(metrics).incrementLoginSuccess();
     }
 
     @Test
@@ -46,6 +51,8 @@ class AuthControllerTest {
                         .param("username", "giorgi.beridze")
                         .param("password", "wrong"))
                 .andExpect(status().isUnauthorized());
+
+        verify(metrics).incrementLoginFailure();
     }
 
     @Test
